@@ -1,5 +1,8 @@
 // js/api.js - API Client
-const API_BASE_URL = 'http://localhost:5000/api';
+// Detect environment and set API URL accordingly
+const API_BASE_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000/api'
+  : 'https://bus-reservation-system-production-0021.up.railway.app/api';
 
 class APIClient {
   static async request(endpoint, options = {}) {
