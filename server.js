@@ -10,12 +10,37 @@ const pool = require('./config/database');
 const app = express();
 
 // Middleware
-const corsOptions = process.env.NODE_ENV === 'development' 
-  ? { origin: '*', credentials: false }
-  : {
-      origin: ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5500', 'http://127.0.0.1:5000', 'http://127.0.0.1:5500'],
-      credentials: true
-    };
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost',
+      'http://localhost:80',
+      'http://localhost:3000',
+      'http://localhost:5000',
+      'http://localhost:5500',
+      'http://localhost:5800',
+      'http://localhost:8080',
+      'http://127.0.0.1',
+      'http://127.0.0.1:80',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5000',
+      'http://127.0.0.1:5500',
+      'http://127.0.0.1:8080'
+    ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else if (process.env.NODE_ENV === 'development') {
+      callback(null, true); // Allow all in development
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
 
 app.use(cors(corsOptions));
 
