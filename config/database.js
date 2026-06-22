@@ -1,4 +1,5 @@
 const mysql = require('mysql2/promise');
+const seedSampleData = require('../database/seedSampleData');
 require('dotenv').config();
 
 let pool;
@@ -26,11 +27,21 @@ const initializeDatabase = async () => {
     console.log('✓ MySQL database connected');
     conn.release();
     usingMySQL = true;
+    try {
+      await seedSampleData(pool);
+    } catch (seedError) {
+      console.warn('✗ Sample data seed skipped:', seedError.message);
+    }
     return pool;
   } catch (err) {
     console.warn('✗ MySQL connection failed, switching to SQLite:', err.message);
     // Fall back to SQLite
     pool = require('./sqlite');
+    try {
+      await seedSampleData(pool);
+    } catch (seedError) {
+      console.warn('✗ Sample data seed skipped:', seedError.message);
+    }
     return pool;
   }
 };

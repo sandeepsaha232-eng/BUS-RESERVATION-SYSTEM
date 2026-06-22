@@ -19,10 +19,13 @@
     </div>
   </nav>
 
-  <div class="page-container">
-    <h1>Search Buses</h1>
-    
-    <div class="search-container" style="margin-bottom: 3rem;">
+  <main class="page-container search-page">
+    <header class="page-heading">
+      <h1>Find Your Bus</h1>
+      <p>Choose a route and travel date to see available buses.</p>
+    </header>
+
+    <div class="search-container search-panel">
       <form id="searchForm" class="search-form" onsubmit="performSearch(event)">
         <select id="from" required>
           <option value="" disabled selected>From City</option>
@@ -70,9 +73,12 @@
     </div>
 
     <div id="resultsContainer" class="results-container">
-      <!-- Results will be loaded here -->
+      <div class="search-empty-state">
+        <strong>Your available buses will appear here</strong>
+        <span>Select two cities and a travel date to begin.</span>
+      </div>
     </div>
-  </div>
+  </main>
 
   <div id="notification" class="notification"></div>
 

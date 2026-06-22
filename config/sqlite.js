@@ -107,9 +107,12 @@ const initializeDatabase = () => {
         ScheduleID INTEGER NOT NULL,
         PassengerID INTEGER NOT NULL,
         SeatNumber INTEGER NOT NULL,
+        PassengerName TEXT,
+        PassengerEmail TEXT,
+        PassengerPhone TEXT,
         BookingDate DATETIME DEFAULT CURRENT_TIMESTAMP,
         Status TEXT DEFAULT 'confirmed',
-        TotalPrice DECIMAL(10, 2),
+        TotalFare DECIMAL(10, 2),
         PaymentStatus TEXT DEFAULT 'pending',
         CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -204,4 +207,3 @@ class SQLiteConnection {
 }
 
 module.exports = new SQLitePool();
-

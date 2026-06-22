@@ -18,36 +18,117 @@
     </div>
   </nav>
 
-  <div class="page-container">
+  <main class="page-container booking-page-container">
+    <header class="page-heading booking-heading">
+      <h1>Complete Your Booking</h1>
+      <p>Select an available seat, enter passenger details, then pay securely.</p>
+    </header>
+
     <div class="booking-page">
       <div class="booking-container">
-        <div class="bus-info">
-          <h2>Bus Details</h2>
-          <div id="busDetails" class="bus-details-box"></div>
+        <div class="booking-main">
+          <section class="bus-info">
+            <h2>Bus Details</h2>
+            <div id="busDetails" class="bus-details-box"></div>
+          </section>
+
+          <section class="seat-selection">
+            <div class="section-title-row">
+              <h3>Select Your Seat</h3>
+              <div class="seat-legend" aria-label="Seat status legend">
+                <span><i class="legend-seat available"></i>Available</span>
+                <span><i class="legend-seat selected"></i>Selected</span>
+                <span><i class="legend-seat booked"></i>Booked</span>
+              </div>
+            </div>
+            <div class="bus-front" aria-hidden="true">Front</div>
+            <div id="seatMap" class="seat-map"></div>
+          </section>
         </div>
 
-        <div class="seat-selection">
-          <h3>Select Your Seat</h3>
-          <div id="seatMap" class="seat-map"></div>
-        </div>
+        <aside class="booking-sidebar">
+          <section class="passenger-info" id="passengerSection">
+            <div class="checkout-step-label">Step 1 of 2</div>
+            <h3>Passenger Information</h3>
+            <form id="passengerForm" onsubmit="proceedToPayment(event)">
+              <label for="passengerName">Full name</label>
+              <input type="text" id="passengerName" placeholder="Passenger name" autocomplete="name" required>
+              <label for="passengerEmail">Email</label>
+              <input type="email" id="passengerEmail" placeholder="name@example.com" autocomplete="email" required>
+              <label for="passengerPhone">Phone</label>
+              <input type="tel" id="passengerPhone" placeholder="10-digit mobile number" autocomplete="tel" pattern="[0-9]{10}" required>
+              <button type="submit" class="btn-primary">Continue to Payment</button>
+            </form>
+          </section>
 
-        <div class="passenger-info">
-          <h3>Passenger Information</h3>
-          <form id="passengerForm" onsubmit="completeBooking(event)">
-            <input type="text" id="passengerName" placeholder="Name" required>
-            <input type="email" id="passengerEmail" placeholder="Email" required>
-            <input type="tel" id="passengerPhone" placeholder="Phone" required>
-            <button type="submit" class="btn-primary">Confirm Booking</button>
-          </form>
-        </div>
+          <section class="payment-info is-hidden" id="paymentSection">
+            <div class="checkout-step-label">Step 2 of 2</div>
+            <h3>Payment</h3>
+            <form id="paymentForm" onsubmit="completeBooking(event)">
+              <div class="payment-methods" role="radiogroup" aria-label="Payment method">
+                <label class="payment-method">
+                  <input type="radio" name="paymentMethod" value="upi" checked onchange="changePaymentMethod()">
+                  <span>UPI</span>
+                </label>
+                <label class="payment-method">
+                  <input type="radio" name="paymentMethod" value="card" onchange="changePaymentMethod()">
+                  <span>Card</span>
+                </label>
+                <label class="payment-method">
+                  <input type="radio" name="paymentMethod" value="netbanking" onchange="changePaymentMethod()">
+                  <span>Net Banking</span>
+                </label>
+              </div>
 
-        <div class="booking-summary">
-          <h3>Booking Summary</h3>
-          <div id="summary" class="summary-box"></div>
-        </div>
+              <div class="payment-panel" data-payment-panel="upi">
+                <label for="upiId">UPI ID</label>
+                <input type="text" id="upiId" placeholder="name@bank" autocomplete="off">
+              </div>
+
+              <div class="payment-panel is-hidden" data-payment-panel="card">
+                <label for="cardNumber">Card number</label>
+                <input type="text" id="cardNumber" inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456" autocomplete="cc-number">
+                <div class="payment-row">
+                  <div>
+                    <label for="cardExpiry">Expiry</label>
+                    <input type="text" id="cardExpiry" inputmode="numeric" maxlength="5" placeholder="MM/YY" autocomplete="cc-exp">
+                  </div>
+                  <div>
+                    <label for="cardCvv">CVV</label>
+                    <input type="password" id="cardCvv" inputmode="numeric" maxlength="4" placeholder="123" autocomplete="cc-csc">
+                  </div>
+                </div>
+              </div>
+
+              <div class="payment-panel is-hidden" data-payment-panel="netbanking">
+                <label for="bankName">Select bank</label>
+                <select id="bankName">
+                  <option value="">Choose your bank</option>
+                  <option value="State Bank of India">State Bank of India</option>
+                  <option value="HDFC Bank">HDFC Bank</option>
+                  <option value="ICICI Bank">ICICI Bank</option>
+                  <option value="Axis Bank">Axis Bank</option>
+                  <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
+                </select>
+              </div>
+
+              <div class="payment-actions">
+                <button type="button" class="btn-text" onclick="returnToPassengerDetails()">Back</button>
+                <button type="submit" class="btn-primary" id="payButton">Pay &amp; Confirm</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="booking-summary">
+            <h3>Booking Summary</h3>
+            <div id="summary" class="summary-box"></div>
+          </section>
+
+          <section class="booking-confirmation is-hidden" id="bookingConfirmation" aria-live="polite"></section>
+        </aside>
       </div>
     </div>
-  </div>
+  </main>
 
   <div id="notification" class="notification"></div>
 

@@ -14,6 +14,11 @@ async function performSearch(event) {
     return;
   }
 
+  if (from === to) {
+    showNotification('Please choose different start and end cities', 'warning');
+    return;
+  }
+
   try {
     showNotification('Searching buses...', 'warning');
     const results = await APIClient.searchSchedules(from, to, travelDate);
@@ -76,10 +81,7 @@ async function selectBusForBooking(scheduleId, button) {
 
   try {
     showNotification('Loading booking page...', 'warning');
-    const schedule = await APIClient.getScheduleDetails(scheduleId);
-    const seats = await APIClient.getAvailableSeats(scheduleId);
-
-    selectedSchedule = { ...schedule, seats };
+    selectedSchedule = await refreshBookingData(scheduleId);
     storeBookingData(selectedSchedule);
 
     // Redirect to booking page
@@ -89,12 +91,29 @@ async function selectBusForBooking(scheduleId, button) {
   }
 }
 
-function displayBookingPage() {
-  const bookingData = getBookingData();
+async function refreshBookingData(scheduleId) {
+  const [schedule, seats] = await Promise.all([
+    APIClient.getScheduleDetails(scheduleId),
+    APIClient.getAvailableSeats(scheduleId)
+  ]);
+
+  const refreshedBookingData = { ...schedule, seats };
+  storeBookingData(refreshedBookingData);
+  return refreshedBookingData;
+}
+
+async function displayBookingPage() {
+  let bookingData = getBookingData();
 
   if (!bookingData) {
     document.body.innerHTML = '<div style="text-align: center; padding: 2rem;"><p>No schedule selected. <a href="search.html">Go back to search</a></p></div>';
     return;
+  }
+
+  try {
+    bookingData = await refreshBookingData(bookingData.ScheduleID);
+  } catch (error) {
+    showNotification('Could not refresh latest seats. Showing saved booking data.', 'warning');
   }
 
   // Display bus details
@@ -127,8 +146,8 @@ function displaySeatMap(bookingData) {
   const html = [];
 
   for (let i = 1; i <= bookingData.Capacity; i++) {
-    const seatInfo = seats.find(s => s.SeatNumber === i);
-    const isBooked = seatInfo && seatInfo.IsBooked;
+    const seatInfo = seats.find(s => Number(s.SeatNumber) === i);
+    const isBooked = seatInfo && Number(seatInfo.IsBooked) === 1;
 
     html.push(`
       <div class="seat ${isBooked ? 'seat-booked' : 'seat-available'} ${selectedSeat === i ? 'seat-selected' : ''}"
@@ -145,9 +164,9 @@ function displaySeatMap(bookingData) {
 function selectSeat(seatNumber) {
   const bookingData = getBookingData();
   const seats = bookingData.seats || [];
-  const seatInfo = seats.find(s => s.SeatNumber === seatNumber);
+  const seatInfo = seats.find(s => Number(s.SeatNumber) === seatNumber);
 
-  if (seatInfo && seatInfo.IsBooked) {
+  if (seatInfo && Number(seatInfo.IsBooked) === 1) {
     showNotification('This seat is already booked', 'warning');
     return;
   }
@@ -198,8 +217,10 @@ async function completeBooking(event) {
     passengerEmail,
     passengerPhone
   };
+  const submitButton = event.target.querySelector('button[type="submit"]');
 
   try {
+    if (submitButton) submitButton.disabled = true;
     showNotification('Processing your booking...', 'warning');
     const response = await APIClient.createReservation(reservationData);
 
@@ -212,6 +233,34 @@ async function completeBooking(event) {
     }, 2000);
   } catch (error) {
     showNotification('Booking failed: ' + error.message, 'error');
+    if (error.message === 'Seat not available') {
+      selectedSeat = null;
+      try {
+        const refreshedBookingData = await refreshBookingData(bookingData.ScheduleID);
+        displaySeatMap(refreshedBookingData);
+        updateSummary();
+      } catch (refreshError) {
+        showNotification('Seat status changed. Please return to search and try again.', 'warning');
+      }
+    }
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+}
+
+async function initializeSearchPage() {
+  if (!requireLogin()) return;
+
+  await initializeRouteSearchForm();
+
+  const searchData = localStorage.getItem('searchData');
+  if (searchData) {
+    const { from, to, travelDate } = JSON.parse(searchData);
+    document.getElementById('from').value = from;
+    document.getElementById('to').value = to;
+    document.getElementById('travelDate').value = travelDate;
+    localStorage.removeItem('searchData');
+    performSearch(new Event('submit'));
   }
 }
 
@@ -220,9 +269,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentPage = window.location.pathname;
   
   if (currentPage.includes('booking.html')) {
-    requireLogin();
-    displayBookingPage();
+    if (requireLogin()) {
+      displayBookingPage();
+    }
   } else if (currentPage.includes('search.html')) {
-    requireLogin();
+    initializeSearchPage();
   }
 });

@@ -3,8 +3,35 @@ const express = require('express');
 const pool = require('../config/database');
 const { body, validationResult, query } = require('express-validator');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { ensureSeatRows, syncAvailableSeats } = require('../utils/seatService');
 
 const router = express.Router();
+
+// Get cities that have routes
+router.get('/cities', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+
+    try {
+      const [cities] = await connection.query(`
+        SELECT city
+        FROM (
+          SELECT StartCity AS city FROM Routes WHERE IsActive = 1
+          UNION
+          SELECT EndCity AS city FROM Routes WHERE IsActive = 1
+        ) availableCities
+        ORDER BY city
+      `);
+
+      res.json((cities || []).map((row) => row.city));
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Get cities error:', error);
+    res.status(500).json({ message: 'Failed to fetch cities', error: error.message });
+  }
+});
 
 // Search schedules
 router.get('/search', [
@@ -28,12 +55,26 @@ router.get('/search', [
           b.BusNumber, b.BusType, b.Capacity,
           rt.StartCity, rt.EndCity, rt.Distance,
           s.DepartureTime, s.ArrivalTime,
-          s.AvailableSeats, s.Fare, s.Status, s.TravelDate,
-          (b.Capacity - s.AvailableSeats) as BookedSeats
+          CASE
+            WHEN (SELECT COUNT(*) FROM Seats st WHERE st.ScheduleID = s.ScheduleID) > 0
+            THEN (SELECT COUNT(*) FROM Seats st WHERE st.ScheduleID = s.ScheduleID AND st.IsBooked = 0)
+            ELSE s.AvailableSeats
+          END as AvailableSeats,
+          s.Fare, s.Status, s.TravelDate,
+          CASE
+            WHEN (SELECT COUNT(*) FROM Seats st WHERE st.ScheduleID = s.ScheduleID) > 0
+            THEN (SELECT COUNT(*) FROM Seats st WHERE st.ScheduleID = s.ScheduleID AND st.IsBooked = 1)
+            ELSE (b.Capacity - s.AvailableSeats)
+          END as BookedSeats
         FROM Schedules s
         JOIN Buses b ON s.BusID = b.BusID
         JOIN Routes rt ON s.RouteID = rt.RouteID
-        WHERE rt.StartCity = ? AND rt.EndCity = ? AND DATE(s.TravelDate) = ? AND s.Status = 'active'
+        WHERE LOWER(rt.StartCity) = LOWER(?)
+          AND LOWER(rt.EndCity) = LOWER(?)
+          AND DATE(s.TravelDate) = ?
+          AND s.Status = 'active'
+          AND b.IsActive = 1
+          AND rt.IsActive = 1
         ORDER BY s.DepartureTime ASC
       `, [from, to, date]);
 
@@ -62,8 +103,17 @@ router.get('/:scheduleId', async (req, res) => {
           b.BusNumber, b.BusType, b.Capacity,
           rt.StartCity, rt.EndCity, rt.Distance,
           s.DepartureTime, s.ArrivalTime,
-          s.AvailableSeats, s.Fare, s.Status, s.TravelDate,
-          (b.Capacity - s.AvailableSeats) as BookedSeats
+          CASE
+            WHEN (SELECT COUNT(*) FROM Seats st WHERE st.ScheduleID = s.ScheduleID) > 0
+            THEN (SELECT COUNT(*) FROM Seats st WHERE st.ScheduleID = s.ScheduleID AND st.IsBooked = 0)
+            ELSE s.AvailableSeats
+          END as AvailableSeats,
+          s.Fare, s.Status, s.TravelDate,
+          CASE
+            WHEN (SELECT COUNT(*) FROM Seats st WHERE st.ScheduleID = s.ScheduleID) > 0
+            THEN (SELECT COUNT(*) FROM Seats st WHERE st.ScheduleID = s.ScheduleID AND st.IsBooked = 1)
+            ELSE (b.Capacity - s.AvailableSeats)
+          END as BookedSeats
         FROM Schedules s
         JOIN Buses b ON s.BusID = b.BusID
         JOIN Routes rt ON s.RouteID = rt.RouteID
@@ -93,10 +143,8 @@ router.get('/:scheduleId/seats', async (req, res) => {
     const connection = await pool.getConnection();
 
     try {
-      const [seats] = await connection.query(
-        'SELECT SeatNumber, IsBooked FROM Seats WHERE ScheduleID = ? ORDER BY SeatNumber',
-        [scheduleId]
-      );
+      const seats = await ensureSeatRows(connection, scheduleId);
+      await syncAvailableSeats(connection, scheduleId);
 
       res.json(seats || []);
 
@@ -140,6 +188,8 @@ router.post('/', authMiddleware, adminMiddleware, [
         'INSERT INTO Schedules (BusID, RouteID, TravelDate, DepartureTime, ArrivalTime, AvailableSeats, Fare, Status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [busId, routeId, travelDate, departureTime, arrivalTime, capacity, fare, 'active']
       );
+
+      await ensureSeatRows(connection, result.insertId);
 
       res.status(201).json({
         message: 'Schedule created successfully',

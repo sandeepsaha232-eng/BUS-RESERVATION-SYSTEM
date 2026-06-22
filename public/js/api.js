@@ -1,7 +1,11 @@
 // js/api.js - API Client
 // Detect environment and set API URL accordingly
-const API_BASE_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000/api'
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1'];
+const LOCAL_API_PORT = window.location.port && !['3000', '5500', '8080'].includes(window.location.port)
+  ? window.location.port
+  : '5800';
+const API_BASE_URL = LOCAL_HOSTS.includes(window.location.hostname)
+  ? `${window.location.protocol}//${window.location.hostname}:${LOCAL_API_PORT}/api`
   : 'https://bus-reservation-system-production-0021.up.railway.app/api';
 
 class APIClient {
@@ -60,8 +64,12 @@ class APIClient {
 
   // Schedule endpoints
   static async searchSchedules(from, to, date) {
-    const formattedDate = new Date(date).toISOString().split('T')[0];
+    const formattedDate = date;
     return this.request(`/schedules/search?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&date=${formattedDate}`);
+  }
+
+  static async getRouteCities() {
+    return this.request('/schedules/cities');
   }
 
   static async getScheduleDetails(scheduleId) {

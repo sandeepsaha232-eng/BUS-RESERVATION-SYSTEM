@@ -11,6 +11,11 @@ function handleSearch(event) {
     return;
   }
 
+  if (from === to) {
+    showNotification('Please choose different start and end cities', 'warning');
+    return;
+  }
+
   // Store search data and redirect
   localStorage.setItem('searchData', JSON.stringify({ from, to, travelDate }));
   window.location.href = 'pages/search.html';
@@ -19,17 +24,7 @@ function handleSearch(event) {
 // Initialize app on page load
 document.addEventListener('DOMContentLoaded', () => {
   updateAuthUI();
-
-  // If coming from search form, load the search on search page
-  const searchData = localStorage.getItem('searchData');
-  if (searchData && window.location.pathname.includes('search.html')) {
-    const { from, to, travelDate } = JSON.parse(searchData);
-    document.getElementById('from').value = from;
-    document.getElementById('to').value = to;
-    document.getElementById('travelDate').value = travelDate;
-    performSearch(new Event('submit'));
-    localStorage.removeItem('searchData');
-  }
+  initializeRouteSearchForm();
 });
 
 // Handle page visibility for token refresh

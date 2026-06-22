@@ -30,7 +30,7 @@ function logout() {
   localStorage.removeItem('role');
   localStorage.removeItem('userName');
   localStorage.removeItem('bookingData');
-  window.location.href = 'index.html';
+  window.location.href = window.location.pathname.includes('/pages/') ? '../index.html' : 'index.html';
 }
 
 function navigateTo(url) {
@@ -105,6 +105,57 @@ function getBookingData() {
 
 function clearBookingData() {
   localStorage.removeItem('bookingData');
+}
+
+function getTodayInputValue() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function populateCitySelect(selectElement, cities, placeholder, selectedValue) {
+  if (!selectElement || !Array.isArray(cities) || cities.length === 0) return;
+
+  selectElement.innerHTML = '';
+
+  const placeholderOption = document.createElement('option');
+  placeholderOption.value = '';
+  placeholderOption.disabled = true;
+  placeholderOption.selected = !selectedValue;
+  placeholderOption.textContent = placeholder;
+  selectElement.appendChild(placeholderOption);
+
+  cities.forEach((city) => {
+    const option = document.createElement('option');
+    option.value = city;
+    option.textContent = city;
+    option.selected = city === selectedValue;
+    selectElement.appendChild(option);
+  });
+}
+
+async function initializeRouteSearchForm() {
+  const fromSelect = document.getElementById('from');
+  const toSelect = document.getElementById('to');
+  const travelDateInput = document.getElementById('travelDate');
+
+  if (!fromSelect || !toSelect || !travelDateInput) return;
+
+  const today = getTodayInputValue();
+  travelDateInput.min = today;
+  if (!travelDateInput.value) {
+    travelDateInput.value = today;
+  }
+
+  try {
+    const cities = await APIClient.getRouteCities();
+    populateCitySelect(fromSelect, cities, 'From City', fromSelect.value);
+    populateCitySelect(toSelect, cities, 'To City', toSelect.value);
+  } catch (error) {
+    console.warn('Could not load route cities:', error);
+  }
 }
 
 // Call this on page load

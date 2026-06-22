@@ -3,6 +3,7 @@ const express = require('express');
 const pool = require('../config/database');
 const { body, validationResult } = require('express-validator');
 const { authMiddleware } = require('../middleware/auth');
+const { ensureSeatRows, syncAvailableSeats } = require('../utils/seatService');
 
 const router = express.Router();
 
@@ -16,6 +17,7 @@ router.get('/', authMiddleware, async (req, res) => {
       const [reservations] = await connection.query(`
         SELECT 
           r.ReservationID, r.ScheduleID, r.SeatNumber,
+          r.PassengerName, r.PassengerEmail, r.PassengerPhone,
           r.BookingDate, r.Status, r.TotalFare,
           b.BusNumber, rt.StartCity, rt.EndCity,
           s.DepartureTime, s.ArrivalTime, s.Fare
@@ -50,6 +52,7 @@ router.get('/:reservationId', authMiddleware, async (req, res) => {
       const [reservations] = await connection.query(`
         SELECT 
           r.ReservationID, r.ScheduleID, r.SeatNumber,
+          r.PassengerName, r.PassengerEmail, r.PassengerPhone,
           r.BookingDate, r.Status, r.TotalFare,
           b.BusNumber, rt.StartCity, rt.EndCity,
           s.DepartureTime, s.ArrivalTime, s.Fare
@@ -81,7 +84,8 @@ router.post('/', authMiddleware, [
   body('scheduleId').isInt(),
   body('seatNumber').isInt(),
   body('passengerName').notEmpty().trim(),
-  body('passengerEmail').isEmail()
+  body('passengerEmail').isEmail(),
+  body('passengerPhone').optional({ checkFalsy: true }).trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -89,27 +93,19 @@ router.post('/', authMiddleware, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { scheduleId, seatNumber, passengerName, passengerEmail } = req.body;
+    const { scheduleId, seatNumber, passengerName, passengerEmail, passengerPhone } = req.body;
     const { userId } = req.user;
     const connection = await pool.getConnection();
 
     try {
       await connection.beginTransaction();
 
-      // Check seat availability
-      const [seatCheck] = await connection.query(
-        'SELECT * FROM Seats WHERE ScheduleID = ? AND SeatNumber = ? AND IsBooked = 0',
-        [scheduleId, seatNumber]
-      );
-
-      if (seatCheck.length === 0) {
-        await connection.rollback();
-        return res.status(400).json({ message: 'Seat not available' });
-      }
-
       // Get schedule and fare information
       const [schedules] = await connection.query(
-        'SELECT Fare FROM Schedules WHERE ScheduleID = ?',
+        `SELECT s.Fare, b.Capacity
+         FROM Schedules s
+         JOIN Buses b ON s.BusID = b.BusID
+         WHERE s.ScheduleID = ? AND s.Status = 'active'`,
         [scheduleId]
       );
 
@@ -119,24 +115,48 @@ router.post('/', authMiddleware, [
       }
 
       const fare = schedules[0].Fare;
+      const capacity = Number(schedules[0].Capacity);
+
+      if (Number(seatNumber) < 1 || Number(seatNumber) > capacity) {
+        await connection.rollback();
+        return res.status(400).json({ message: 'Invalid seat number' });
+      }
+
+      await ensureSeatRows(connection, scheduleId);
+
+      const [seatCheck] = await connection.query(
+        'SELECT IsBooked FROM Seats WHERE ScheduleID = ? AND SeatNumber = ?',
+        [scheduleId, seatNumber]
+      );
+
+      if (seatCheck.length === 0 || Number(seatCheck[0].IsBooked) === 1) {
+        await connection.rollback();
+        return res.status(400).json({ message: 'Seat not available' });
+      }
+
+      const [seatUpdate] = await connection.query(`
+        UPDATE Seats
+        SET IsBooked = 1, PassengerID = ?, BookingTime = CURRENT_TIMESTAMP
+        WHERE ScheduleID = ? AND SeatNumber = ? AND IsBooked = 0
+      `, [userId, scheduleId, seatNumber]);
+
+      if (seatUpdate.affectedRows === 0) {
+        await connection.rollback();
+        return res.status(400).json({ message: 'Seat not available' });
+      }
 
       // Create reservation
       const [reservationResult] = await connection.query(
-        'INSERT INTO Reservations (ScheduleID, PassengerID, SeatNumber, BookingDate, Status, TotalFare) VALUES (?, ?, ?, NOW(), ?, ?)',
-        [scheduleId, userId, seatNumber, 'confirmed', fare]
+        `INSERT INTO Reservations (
+          ScheduleID, PassengerID, SeatNumber,
+          PassengerName, PassengerEmail, PassengerPhone,
+          BookingDate, Status, TotalFare
+        )
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)`,
+        [scheduleId, userId, seatNumber, passengerName, passengerEmail, passengerPhone || null, 'confirmed', fare]
       );
 
-      // Update seat status
-      await connection.query(
-        'UPDATE Seats SET IsBooked = 1, PassengerID = ?, BookingTime = NOW() WHERE ScheduleID = ? AND SeatNumber = ?',
-        [userId, scheduleId, seatNumber]
-      );
-
-      // Update available seats
-      await connection.query(
-        'UPDATE Schedules SET AvailableSeats = AvailableSeats - 1 WHERE ScheduleID = ?',
-        [scheduleId]
-      );
+      await syncAvailableSeats(connection, scheduleId);
 
       await connection.commit();
 
@@ -179,24 +199,22 @@ router.delete('/:reservationId', authMiddleware, async (req, res) => {
         return res.status(404).json({ message: 'Reservation not found' });
       }
 
-      // Update reservation status
-      await connection.query(
-        'UPDATE Reservations SET Status = ? WHERE ReservationID = ?',
-        ['cancelled', reservationId]
-      );
-
       // Free up seat
       const res_data = reservation[0];
-      await connection.query(
-        'UPDATE Seats SET IsBooked = 0, PassengerID = NULL WHERE ScheduleID = ? AND SeatNumber = ?',
-        [res_data.ScheduleID, res_data.SeatNumber]
-      );
+      if (res_data.Status !== 'cancelled') {
+        // Update reservation status
+        await connection.query(
+          'UPDATE Reservations SET Status = ? WHERE ReservationID = ?',
+          ['cancelled', reservationId]
+        );
 
-      // Update available seats
-      await connection.query(
-        'UPDATE Schedules SET AvailableSeats = AvailableSeats + 1 WHERE ScheduleID = ?',
-        [res_data.ScheduleID]
-      );
+        await connection.query(
+          'UPDATE Seats SET IsBooked = 0, PassengerID = NULL, BookingTime = NULL WHERE ScheduleID = ? AND SeatNumber = ?',
+          [res_data.ScheduleID, res_data.SeatNumber]
+        );
+
+        await syncAvailableSeats(connection, res_data.ScheduleID);
+      }
 
       await connection.commit();
       res.json({ message: 'Reservation cancelled successfully' });
