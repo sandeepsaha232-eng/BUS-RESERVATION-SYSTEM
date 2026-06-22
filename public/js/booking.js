@@ -101,13 +101,11 @@ function displayBookingPage() {
   const busDetailsDiv = document.getElementById('busDetails');
   if (busDetailsDiv) {
     busDetailsDiv.innerHTML = `
-      <div class="bus-details-box">
-        <div><strong>Route:</strong> <span>${bookingData.StartCity} → ${bookingData.EndCity}</span></div>
-        <div><strong>Bus:</strong> <span>${bookingData.BusNumber}</span></div>
-        <div><strong>Departure:</strong> <span>${formatTime(bookingData.DepartureTime)}</span></div>
-        <div><strong>Arrival:</strong> <span>${formatTime(bookingData.ArrivalTime)}</span></div>
-        <div><strong>Fare:</strong> <span>${formatCurrency(bookingData.Fare)}</span></div>
-      </div>
+      <div><strong>Route:</strong> <span>${bookingData.StartCity} → ${bookingData.EndCity}</span></div>
+      <div><strong>Bus:</strong> <span>${bookingData.BusNumber}</span></div>
+      <div><strong>Departure:</strong> <span>${formatTime(bookingData.DepartureTime)}</span></div>
+      <div><strong>Arrival:</strong> <span>${formatTime(bookingData.ArrivalTime)}</span></div>
+      <div><strong>Fare:</strong> <span>${formatCurrency(bookingData.Fare)}</span></div>
     `;
   }
 

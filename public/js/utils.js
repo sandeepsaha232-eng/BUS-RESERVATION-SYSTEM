@@ -38,14 +38,23 @@ function navigateTo(url) {
 }
 
 function formatDate(dateString) {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
   const options = { year: 'numeric', month: 'short', day: 'numeric' };
-  return new Date(dateString).toLocaleDateString('en-US', options);
+  return date.toLocaleDateString('en-US', options);
 }
 
 function formatTime(timeString) {
   if (!timeString) return 'N/A';
-  const [hours, minutes] = timeString.split(':');
-  return `${hours}:${minutes}`;
+  const date = new Date(timeString);
+  if (isNaN(date.getTime())) {
+    // Fallback if it's just a time string like "09:00"
+    const parts = timeString.split(':');
+    if (parts.length >= 2) return `${parts[0]}:${parts[1]}`;
+    return timeString;
+  }
+  const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  return date.toLocaleString('en-US', options);
 }
 
 function formatCurrency(amount) {
