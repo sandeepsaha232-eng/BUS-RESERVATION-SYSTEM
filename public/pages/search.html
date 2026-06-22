@@ -22,27 +22,28 @@
   <div class="page-container">
     <h1>Search Buses</h1>
     
-    <form id="searchForm" class="search-form" onsubmit="performSearch(event)">
-      <select id="from" required>
-        <option value="" disabled selected>From City</option>
-        <option value="Agra">Agra</option>
-        <option value="Ahmedabad">Ahmedabad</option>
-        <option value="Bangalore">Bangalore</option>
-        <option value="Bhopal">Bhopal</option>
-        <option value="Chennai">Chennai</option>
-        <option value="Cochin">Cochin</option>
-        <option value="Delhi">Delhi</option>
-        <option value="Goa">Goa</option>
-        <option value="Hyderabad">Hyderabad</option>
-        <option value="Indore">Indore</option>
-        <option value="Jaipur">Jaipur</option>
-        <option value="Kanpur">Kanpur</option>
-        <option value="Kolkata">Kolkata</option>
-        <option value="Lucknow">Lucknow</option>
-        <option value="Mumbai">Mumbai</option>
-        <option value="Patna">Patna</option>
-        <option value="Pune">Pune</option>
-      </select>
+    <div class="search-container" style="margin-bottom: 3rem;">
+      <form id="searchForm" class="search-form" onsubmit="performSearch(event)">
+        <select id="from" required>
+          <option value="" disabled selected>From City</option>
+          <option value="Agra">Agra</option>
+          <option value="Ahmedabad">Ahmedabad</option>
+          <option value="Bangalore">Bangalore</option>
+          <option value="Bhopal">Bhopal</option>
+          <option value="Chennai">Chennai</option>
+          <option value="Cochin">Cochin</option>
+          <option value="Delhi">Delhi</option>
+          <option value="Goa">Goa</option>
+          <option value="Hyderabad">Hyderabad</option>
+          <option value="Indore">Indore</option>
+          <option value="Jaipur">Jaipur</option>
+          <option value="Kanpur">Kanpur</option>
+          <option value="Kolkata">Kolkata</option>
+          <option value="Lucknow">Lucknow</option>
+          <option value="Mumbai">Mumbai</option>
+          <option value="Patna">Patna</option>
+          <option value="Pune">Pune</option>
+        </select>
       <select id="to" required>
         <option value="" disabled selected>To City</option>
         <option value="Agra">Agra</option>
@@ -66,6 +67,7 @@
       <input type="date" id="travelDate" required>
       <button type="submit" class="btn-primary">Search</button>
     </form>
+    </div>
 
     <div id="resultsContainer" class="results-container">
       <!-- Results will be loaded here -->

@@ -169,14 +169,12 @@ function updateSummary() {
   }
 
   summaryDiv.innerHTML = `
-    <div class="summary-box">
       <div><strong>Route:</strong> <span>${bookingData.StartCity} → ${bookingData.EndCity}</span></div>
       <div><strong>Date:</strong> <span>${formatDate(bookingData.TravelDate)}</span></div>
       <div><strong>Seat Number:</strong> <span>${selectedSeat}</span></div>
       <div><strong>Fare per Seat:</strong> <span>${formatCurrency(bookingData.Fare)}</span></div>
       <hr>
       <div><strong style="font-size: 1.1rem;">Total Fare:</strong> <span style="font-size: 1.1rem; color: var(--secondary-color);">${formatCurrency(bookingData.Fare)}</span></div>
-    </div>
   `;
 }
 
