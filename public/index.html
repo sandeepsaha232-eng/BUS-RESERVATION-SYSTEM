@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bus Reservation System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="logo">🚌 BusReserve</div>
+      <ul class="nav-menu" id="navMenu">
+        <li><a href="#home">Home</a></li>
+        <li><a href="#search">Search Buses</a></li>
+        <li><a href="pages/login.html" id="loginLink">Login</a></li>
+        <li><a href="pages/register.html" id="registerLink">Register</a></li>
+        <li><a href="#" id="logoutLink" style="display:none;" onclick="logout()">Logout</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <section id="hero" class="hero">
+    <div class="hero-content">
+      <h1>Your Journey, Our Priority</h1>
+      <p>Book your bus tickets easily and safely</p>
+      <button class="btn-primary" onclick="navigateTo('pages/search.html')">Book Now</button>
+    </div>
+  </section>
+
+  <section id="search" class="search-section">
+    <div class="search-container">
+      <h2>Search Buses</h2>
+      <form id="searchForm" onsubmit="handleSearch(event)">
+        <input type="text" id="from" placeholder="From City" required>
+        <input type="text" id="to" placeholder="To City" required>
+        <input type="date" id="travelDate" required>
+        <button type="submit" class="btn-primary">Search</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature-card">
+      <h3>✅ Easy Booking</h3>
+      <p>Simple and fast booking process in minutes</p>
+    </div>
+    <div class="feature-card">
+      <h3>🎫 Instant Booking</h3>
+      <p>Confirm your booking immediately</p>
+    </div>
+    <div class="feature-card">
+      <h3>📱 24/7 Support</h3>
+      <p>Round-the-clock customer support</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; 2024 Bus Reservation System. All rights reserved.</p>
+  </footer>
+
+  <div id="notification" class="notification"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
