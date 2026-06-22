@@ -133,6 +133,21 @@ class SQLiteConnection {
   }
 
   async query(sql, params = []) {
+    const trimmed = sql.trim().toUpperCase();
+    const isWrite = trimmed.startsWith('INSERT') || trimmed.startsWith('UPDATE') || trimmed.startsWith('DELETE');
+
+    if (isWrite) {
+      return new Promise((resolve, reject) => {
+        this.db.run(sql, params, function(err) {
+          if (err) reject(err);
+          else {
+            // Return in mysql2/promise format: [result, fields]
+            resolve([{ insertId: this.lastID, affectedRows: this.changes }, []]);
+          }
+        });
+      });
+    }
+
     return new Promise((resolve, reject) => {
       this.db.all(sql, params, (err, rows) => {
         if (err) reject(err);
@@ -152,6 +167,33 @@ class SQLiteConnection {
           // Return in mysql2/promise format: [result, fields]
           resolve([{ insertId: this.lastID, affectedRows: this.changes }, []]);
         }
+      });
+    });
+  }
+
+  async beginTransaction() {
+    return new Promise((resolve, reject) => {
+      this.db.run('BEGIN TRANSACTION', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
+
+  async commit() {
+    return new Promise((resolve, reject) => {
+      this.db.run('COMMIT', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
+
+  async rollback() {
+    return new Promise((resolve, reject) => {
+      this.db.run('ROLLBACK', (err) => {
+        if (err) reject(err);
+        else resolve();
       });
     });
   }
