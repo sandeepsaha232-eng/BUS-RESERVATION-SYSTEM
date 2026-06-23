@@ -1,8 +1,9 @@
-// js/payment.js - Standalone Payment Page Functions
+// js/payment.js - Standalone Payment Page Logic
 
 let bookingData = null;
+let currentMethod = 'upi';
 
-// Initialize payment page
+/* ─── Initialization ─────────────────────────────────────── */
 async function initializePaymentPage() {
   if (!requireLogin()) return;
 
@@ -12,103 +13,118 @@ async function initializePaymentPage() {
     bookingData = null;
   }
 
-  // Error boundary: if sessionStorage is empty, redirect back to booking page with toast
+  // Error boundary: if sessionStorage is empty redirect back
   if (!bookingData || !bookingData.booking_id) {
     localStorage.setItem('pendingToast', 'Session expired. Please restart booking.');
     window.location.href = 'booking.html';
     return;
   }
 
-  // If sessionStorage is missing any key booking details, fetch them
-  if (!bookingData.seat || !bookingData.fare || !bookingData.passenger || !bookingData.busDetails) {
-    try {
-      showNotification('Fetching missing booking details...', 'warning');
-      const details = await APIClient.getReservationDetails(bookingData.booking_id);
-      
-      bookingData = {
-        booking_id: details.ReservationID,
-        seat: details.SeatNumber,
-        fare: details.TotalFare || details.Fare,
-        passenger: {
-          name: details.PassengerName,
-          email: details.PassengerEmail,
-          phone: details.PassengerPhone
-        },
-        busDetails: {
-          route: `${details.StartCity} → ${details.EndCity}`,
-          busNumber: details.BusNumber,
-          departure: details.DepartureTime,
-          arrival: details.ArrivalTime,
-          date: details.DepartureTime
-        }
-      };
-      sessionStorage.setItem('currentBooking', JSON.stringify(bookingData));
-    } catch (err) {
-      console.error('Fetch error:', err);
-      localStorage.setItem('pendingToast', 'Session expired. Please restart booking.');
-      window.location.href = 'booking.html';
-      return;
-    }
-  }
-
-  // Populate UI
   populateBookingSummary();
-  changePaymentMethod();
+  selectTab('upi'); // default tab
 }
 
+/* ─── Tab / Panel Switching ──────────────────────────────── */
+function selectTab(method) {
+  currentMethod = method;
+
+  // Update radio selection
+  const radio = document.querySelector(`input[name="paymentMethod"][value="${method}"]`);
+  if (radio) radio.checked = true;
+
+  // Update tab highlight
+  ['upi', 'card', 'netbanking'].forEach(m => {
+    const tab = document.getElementById(`tab-${m}`);
+    if (tab) tab.classList.toggle('active-tab', m === method);
+  });
+
+  // Show only the matching panel
+  ['upi', 'card', 'netbanking'].forEach(m => {
+    const panel = document.getElementById(`panel-${m}`);
+    if (!panel) return;
+    if (m === method) {
+      panel.classList.remove('is-hidden');
+      panel.querySelectorAll('input, select').forEach(el => {
+        el.required = (el.id !== 'cardCvv'); // CVV optional visually but validated manually
+      });
+    } else {
+      panel.classList.add('is-hidden');
+      panel.querySelectorAll('input, select').forEach(el => el.required = false);
+    }
+  });
+}
+
+/* ─── Booking Summary Sidebar ────────────────────────────── */
 function populateBookingSummary() {
   const summaryDiv = document.getElementById('summary');
   if (!summaryDiv || !bookingData) return;
 
   summaryDiv.innerHTML = `
-    <div style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-light);">
-      <strong>Booking ID:</strong> <span style="color: var(--primary); font-weight: 600;">#${bookingData.booking_id}</span>
+    <div><span>Booking ID</span><span style="color:var(--primary);font-weight:700;">#${bookingData.booking_id}</span></div>
+    <div><span>Route</span><span>${bookingData.busDetails.route}</span></div>
+    <div><span>Bus</span><span>${bookingData.busDetails.busNumber}</span></div>
+    <div><span>Departure</span><span>${formatTime(bookingData.busDetails.departure)}</span></div>
+    <div><span>Seat</span><span>#${bookingData.seat}</span></div>
+    <div><span>Passenger</span><span>${bookingData.passenger.name}</span></div>
+    <div style="border-bottom:none;padding-bottom:0;">
+      <span style="font-weight:700;font-size:1rem;">Total</span>
+      <span style="font-weight:800;font-size:1.1rem;color:var(--secondary);">${formatCurrency(bookingData.fare)}</span>
     </div>
-    <div><strong>Route:</strong> <span>${bookingData.busDetails.route}</span></div>
-    <div><strong>Bus Number:</strong> <span>${bookingData.busDetails.busNumber}</span></div>
-    <div><strong>Departure:</strong> <span>${formatTime(bookingData.busDetails.departure)}</span></div>
-    <div><strong>Seat Number:</strong> <span>${bookingData.seat}</span></div>
-    <div><strong>Passenger:</strong> <span>${bookingData.passenger.name}</span></div>
-    <div><strong>Fare:</strong> <span>${formatCurrency(bookingData.fare)}</span></div>
-    <hr style="margin: 1rem 0; border: none; border-top: 1px solid var(--border-light);">
-    <div><strong style="font-size: 1.1rem;">Total Amount:</strong> <span style="font-size: 1.1rem; color: var(--secondary); font-weight: 700;">${formatCurrency(bookingData.fare)}</span></div>
   `;
 }
 
-function changePaymentMethod() {
-  const selectedMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
-  const panels = document.querySelectorAll('.payment-panel');
+/* ─── Receipt Generation ─────────────────────────────────── */
+function showReceipt(method, methodDetails) {
+  const now = new Date();
+  const txnId = 'TXN' + Date.now().toString().slice(-10).toUpperCase();
 
-  // Highlight selected tab
-  const labels = document.querySelectorAll('.payment-method');
-  labels.forEach(label => {
-    const radio = label.querySelector('input');
-    if (radio && radio.checked) {
-      label.classList.add('active-tab');
-    } else {
-      label.classList.remove('active-tab');
-    }
-  });
+  // Build method string
+  let methodStr = '';
+  if (method === 'upi') methodStr = `UPI · ${methodDetails.upiId}`;
+  else if (method === 'card') methodStr = `Card ···· ${(methodDetails.cardNumber || '').replace(/\s/g,'').slice(-4)}`;
+  else if (method === 'netbanking') methodStr = `Net Banking · ${methodDetails.bankName}`;
 
-  panels.forEach(panel => {
-    if (panel.getAttribute('data-payment-panel') === selectedMethod) {
-      panel.classList.remove('is-hidden');
-      // Mark fields required
-      const inputs = panel.querySelectorAll('input, select');
-      inputs.forEach(input => input.setAttribute('required', 'true'));
-    } else {
-      panel.classList.add('is-hidden');
-      // Remove required
-      const inputs = panel.querySelectorAll('input, select');
-      inputs.forEach(input => input.removeAttribute('required'));
-    }
-  });
+  const receiptBody = document.getElementById('receiptBody');
+  receiptBody.innerHTML = `
+    <div class="receipt-row"><span>Booking ID</span><span style="color:var(--primary);">#${bookingData.booking_id}</span></div>
+    <div class="receipt-row"><span>Transaction ID</span><span>${txnId}</span></div>
+    <div class="receipt-row"><span>Route</span><span>${bookingData.busDetails.route}</span></div>
+    <div class="receipt-row"><span>Bus Number</span><span>${bookingData.busDetails.busNumber}</span></div>
+    <div class="receipt-row"><span>Departure</span><span>${formatTime(bookingData.busDetails.departure)}</span></div>
+    <div class="receipt-row"><span>Seat Number</span><span>#${bookingData.seat}</span></div>
+    <div class="receipt-row"><span>Passenger</span><span>${bookingData.passenger.name}</span></div>
+    <div class="receipt-row"><span>Email</span><span>${bookingData.passenger.email}</span></div>
+    <div class="receipt-row"><span>Payment Method</span><span>${methodStr}</span></div>
+    <div class="receipt-row"><span>Date &amp; Time</span><span>${now.toLocaleString('en-IN')}</span></div>
+    <div class="receipt-total-row">
+      <span>Amount Paid</span>
+      <span>${formatCurrency(bookingData.fare)}</span>
+    </div>
+    <div class="receipt-actions">
+      <div style="text-align:center; padding:1.5rem 0 0; width:100%;">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin:0;">
+          📧 A copy of this receipt has been sent to <strong>${bookingData.passenger.email}</strong>
+        </p>
+      </div>
+    </div>
+  `;
+
+  // Switch views
+  document.getElementById('paymentView').classList.add('is-hidden');
+  document.getElementById('receiptView').classList.remove('is-hidden');
 }
 
+/* ─── Print Receipt ──────────────────────────────────────── */
+function printReceipt() {
+  window.print();
+}
+
+/* ─── Back Navigation ─────────────────────────────────────── */
 function goBackToBooking() {
   window.location.href = 'booking.html';
 }
 
+/* ─── Complete Booking ───────────────────────────────────── */
 async function completeBooking(event) {
   event.preventDefault();
 
@@ -117,16 +133,42 @@ async function completeBooking(event) {
     return;
   }
 
-  const selectedMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+  // Gather method details
   let details = {};
+  let validationError = null;
 
-  if (selectedMethod === 'upi') {
-    details.upiId = document.getElementById('upiId').value;
-  } else if (selectedMethod === 'card') {
-    details.cardNumber = document.getElementById('cardNumber').value;
-    details.cardExpiry = document.getElementById('cardExpiry').value;
-  } else if (selectedMethod === 'netbanking') {
-    details.bankName = document.getElementById('bankName').value;
+  if (currentMethod === 'upi') {
+    const upiId = document.getElementById('upiId').value.trim();
+    const upiName = document.getElementById('upiName').value.trim();
+    if (!upiId || !upiId.includes('@')) {
+      validationError = 'Please enter a valid UPI ID (e.g. name@bank)';
+    } else if (!upiName) {
+      validationError = 'Please enter the UPI account holder name.';
+    }
+    details = { upiId, upiName };
+
+  } else if (currentMethod === 'card') {
+    const cardName = document.getElementById('cardName').value.trim();
+    const cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
+    const cardExpiry = document.getElementById('cardExpiry').value.trim();
+    const cardCvv = document.getElementById('cardCvv').value.trim();
+    if (!cardName) validationError = 'Please enter the name on your card.';
+    else if (cardNumber.length < 12) validationError = 'Please enter a valid card number.';
+    else if (!cardExpiry || cardExpiry.length < 5) validationError = 'Please enter a valid expiry (MM/YY).';
+    else if (cardCvv.length < 3) validationError = 'Please enter a valid CVV.';
+    details = { cardName, cardNumber, cardExpiry };
+
+  } else if (currentMethod === 'netbanking') {
+    const bankName = document.getElementById('bankName').value;
+    const bankUserId = document.getElementById('bankUserId').value.trim();
+    if (!bankName) validationError = 'Please select your bank.';
+    else if (!bankUserId) validationError = 'Please enter your net banking user ID.';
+    details = { bankName, bankUserId };
+  }
+
+  if (validationError) {
+    showNotification(validationError, 'warning');
+    return;
   }
 
   const submitButton = document.getElementById('payButton');
@@ -137,23 +179,21 @@ async function completeBooking(event) {
       submitButton.classList.add('loading');
     }
 
-    showNotification('Processing payment...', 'warning');
+    showNotification('Processing payment…', 'warning');
 
     await APIClient.confirmPayment({
       booking_id: bookingData.booking_id,
-      method: selectedMethod,
-      details: details
+      method: currentMethod,
+      details
     });
 
-    showNotification('Payment successful! Booking confirmed.', 'success');
-
-    // Clean up
+    // Clean up session
     sessionStorage.removeItem('currentBooking');
     localStorage.removeItem('bookingData');
 
-    setTimeout(() => {
-      window.location.href = 'search.html';
-    }, 2000);
+    // Show on-page receipt
+    showReceipt(currentMethod, details);
+    showNotification('🎉 Booking confirmed! Check your email for the receipt.', 'success');
 
   } catch (error) {
     showNotification('Payment failed: ' + error.message, 'error');
@@ -164,5 +204,5 @@ async function completeBooking(event) {
   }
 }
 
-// Initialize on page load
+// ── Boot ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', initializePaymentPage);

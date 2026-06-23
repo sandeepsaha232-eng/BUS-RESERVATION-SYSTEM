@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payment - Bus Reservation System</title>
+  <title>Payment - BusReserve</title>
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body class="fade-in">
@@ -19,83 +19,135 @@
   </nav>
 
   <main class="page-container booking-page-container">
-    <header class="page-heading booking-heading">
-      <h1>Payment Details</h1>
-      <p>Secure your ticket using UPI, Credit/Debit Card, or Net Banking.</p>
-    </header>
 
-    <div class="booking-page">
-      <div class="booking-container">
-        <!-- Main checkout payment form -->
-        <div class="booking-main">
-          <section class="payment-info" id="paymentSection">
-            <div class="checkout-step-label">Step 2 of 2</div>
-            <h3>Select Payment Method</h3>
-            <form id="paymentForm" onsubmit="completeBooking(event)">
+    <!-- STEP: Payment Form -->
+    <div id="paymentView">
+      <header class="page-heading booking-heading">
+        <h1>Secure Payment</h1>
+        <p>Choose your payment method and complete your booking.</p>
+      </header>
+
+      <div class="booking-page">
+        <div class="booking-container">
+
+          <!-- Payment Form -->
+          <div class="booking-main">
+            <section class="payment-info">
+              <div class="checkout-step-label">Step 2 of 2</div>
+              <h3>Choose Payment Method</h3>
+
+              <!-- Method Tabs -->
               <div class="payment-methods" role="radiogroup" aria-label="Payment method">
-                <label class="payment-method">
-                  <input type="radio" name="paymentMethod" value="upi" checked onchange="changePaymentMethod()">
-                  <span>UPI</span>
+                <label class="payment-method active-tab" id="tab-upi" onclick="selectTab('upi')">
+                  <input type="radio" name="paymentMethod" value="upi" checked>
+                  <span>📱 UPI</span>
                 </label>
-                <label class="payment-method">
-                  <input type="radio" name="paymentMethod" value="card" onchange="changePaymentMethod()">
-                  <span>Card</span>
+                <label class="payment-method" id="tab-card" onclick="selectTab('card')">
+                  <input type="radio" name="paymentMethod" value="card">
+                  <span>💳 Card</span>
                 </label>
-                <label class="payment-method">
-                  <input type="radio" name="paymentMethod" value="netbanking" onchange="changePaymentMethod()">
-                  <span>Net Banking</span>
+                <label class="payment-method" id="tab-netbanking" onclick="selectTab('netbanking')">
+                  <input type="radio" name="paymentMethod" value="netbanking">
+                  <span>🏦 Net Banking</span>
                 </label>
               </div>
 
-              <div class="payment-panel" id="panel-upi" data-payment-panel="upi">
-                <label for="upiId">UPI ID</label>
-                <input type="text" id="upiId" placeholder="name@bank" autocomplete="off" required>
-              </div>
+              <form id="paymentForm" onsubmit="completeBooking(event)">
 
-              <div class="payment-panel is-hidden" id="panel-card" data-payment-panel="card">
-                <label for="cardNumber">Card number</label>
-                <input type="text" id="cardNumber" inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456" autocomplete="cc-number">
-                <div class="payment-row">
+                <!-- UPI Panel -->
+                <div class="payment-panel" id="panel-upi">
                   <div>
-                    <label for="cardExpiry">Expiry</label>
-                    <input type="text" id="cardExpiry" inputmode="numeric" maxlength="5" placeholder="MM/YY" autocomplete="cc-exp">
+                    <label for="upiId">UPI ID</label>
+                    <input type="text" id="upiId" placeholder="yourname@upi" autocomplete="off">
                   </div>
                   <div>
-                    <label for="cardCvv">CVV</label>
-                    <input type="password" id="cardCvv" inputmode="numeric" maxlength="4" placeholder="123" autocomplete="cc-csc">
+                    <label for="upiName">Account Holder Name</label>
+                    <input type="text" id="upiName" placeholder="Full name as registered" autocomplete="name">
                   </div>
                 </div>
-              </div>
 
-              <div class="payment-panel is-hidden" id="panel-netbanking" data-payment-panel="netbanking">
-                <label for="bankName">Select bank</label>
-                <select id="bankName">
-                  <option value="">Choose your bank</option>
-                  <option value="State Bank of India">State Bank of India</option>
-                  <option value="HDFC Bank">HDFC Bank</option>
-                  <option value="ICICI Bank">ICICI Bank</option>
-                  <option value="Axis Bank">Axis Bank</option>
-                  <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
-                </select>
-              </div>
+                <!-- Card Panel -->
+                <div class="payment-panel is-hidden" id="panel-card">
+                  <div>
+                    <label for="cardName">Name on Card</label>
+                    <input type="text" id="cardName" placeholder="Full name on card" autocomplete="cc-name">
+                  </div>
+                  <div>
+                    <label for="cardNumber">Card Number</label>
+                    <input type="text" id="cardNumber" inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456" autocomplete="cc-number">
+                  </div>
+                  <div class="payment-row">
+                    <div>
+                      <label for="cardExpiry">Expiry</label>
+                      <input type="text" id="cardExpiry" inputmode="numeric" maxlength="5" placeholder="MM/YY" autocomplete="cc-exp">
+                    </div>
+                    <div>
+                      <label for="cardCvv">CVV</label>
+                      <input type="password" id="cardCvv" inputmode="numeric" maxlength="4" placeholder="•••" autocomplete="cc-csc">
+                    </div>
+                  </div>
+                </div>
 
-              <div class="payment-actions" style="margin-top: 2rem;">
-                <button type="button" class="btn-text" onclick="goBackToBooking()">Back to Booking</button>
-                <button type="submit" class="btn-primary" id="payButton">Pay &amp; Confirm</button>
-              </div>
-            </form>
-          </section>
+                <!-- Net Banking Panel -->
+                <div class="payment-panel is-hidden" id="panel-netbanking">
+                  <div>
+                    <label for="bankName">Select Bank</label>
+                    <select id="bankName">
+                      <option value="">Choose your bank</option>
+                      <option value="State Bank of India">State Bank of India</option>
+                      <option value="HDFC Bank">HDFC Bank</option>
+                      <option value="ICICI Bank">ICICI Bank</option>
+                      <option value="Axis Bank">Axis Bank</option>
+                      <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
+                      <option value="Bank of Baroda">Bank of Baroda</option>
+                      <option value="Punjab National Bank">Punjab National Bank</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="bankUserId">Net Banking User ID</label>
+                    <input type="text" id="bankUserId" placeholder="Enter your net banking ID" autocomplete="username">
+                  </div>
+                </div>
+
+                <div class="payment-actions">
+                  <button type="button" class="btn-text" onclick="goBackToBooking()">← Back</button>
+                  <button type="submit" class="btn-primary" id="payButton" style="min-width:180px;">Pay &amp; Confirm</button>
+                </div>
+              </form>
+            </section>
+          </div>
+
+          <!-- Booking Summary Sidebar -->
+          <aside class="booking-sidebar">
+            <section class="booking-summary">
+              <h3>Booking Summary</h3>
+              <div id="summary" class="summary-box"></div>
+            </section>
+          </aside>
+
         </div>
-
-        <!-- Sidebar for details summary -->
-        <aside class="booking-sidebar">
-          <section class="booking-summary">
-            <h3>Booking Summary</h3>
-            <div id="summary" class="summary-box"></div>
-          </section>
-        </aside>
       </div>
     </div>
+
+    <!-- STEP: Receipt View (hidden initially) -->
+    <div id="receiptView" class="is-hidden">
+      <div class="receipt-container" id="receiptCard">
+        <div class="receipt-header">
+          <span class="receipt-success-icon">✅</span>
+          <h2 style="margin:0; font-size:1.6rem; font-weight:800;">Payment Successful!</h2>
+          <p style="margin:0.5rem 0 0; opacity:0.9; font-size:0.95rem;">Your seat is confirmed. Have a great journey!</p>
+        </div>
+        <div class="receipt-body" id="receiptBody">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-bottom: 3rem;">
+        <button class="btn-primary" onclick="printReceipt()" style="margin-right:1rem;">🖨️ Print Receipt</button>
+        <button class="btn-text" onclick="window.location.href='search.html'">Search More Buses</button>
+      </div>
+    </div>
+
   </main>
 
   <div id="notification" class="notification"></div>
