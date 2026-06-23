@@ -197,7 +197,7 @@ function updateSummary() {
   `;
 }
 
-async function completeBooking(event) {
+async function proceedToPayment(event) {
   event.preventDefault();
 
   if (!selectedSeat) {
@@ -210,41 +210,53 @@ async function completeBooking(event) {
   const passengerEmail = document.getElementById('passengerEmail').value;
   const passengerPhone = document.getElementById('passengerPhone').value;
 
-  const reservationData = {
+  const initiateData = {
     scheduleId: bookingData.ScheduleID,
     seatNumber: selectedSeat,
     passengerName,
     passengerEmail,
     passengerPhone
   };
+
   const submitButton = event.target.querySelector('button[type="submit"]');
 
   try {
-    if (submitButton) submitButton.disabled = true;
-    showNotification('Processing your booking...', 'warning');
-    const response = await APIClient.createReservation(reservationData);
-
-    showNotification('Booking confirmed! Your reservation ID: ' + response.reservationId, 'success');
-    clearBookingData();
-    selectedSeat = null;
-
-    setTimeout(() => {
-      window.location.href = 'search.html';
-    }, 2000);
-  } catch (error) {
-    showNotification('Booking failed: ' + error.message, 'error');
-    if (error.message === 'Seat not available') {
-      selectedSeat = null;
-      try {
-        const refreshedBookingData = await refreshBookingData(bookingData.ScheduleID);
-        displaySeatMap(refreshedBookingData);
-        updateSummary();
-      } catch (refreshError) {
-        showNotification('Seat status changed. Please return to search and try again.', 'warning');
-      }
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.classList.add('loading');
     }
-  } finally {
-    if (submitButton) submitButton.disabled = false;
+    showNotification('Initiating checkout...', 'warning');
+    const response = await APIClient.initiateBooking(initiateData);
+
+    // Save to sessionStorage
+    const sessionBookingData = {
+      booking_id: response.booking_id,
+      seat: selectedSeat,
+      fare: bookingData.Fare,
+      passenger: {
+        name: passengerName,
+        email: passengerEmail,
+        phone: passengerPhone
+      },
+      busDetails: {
+        route: `${bookingData.StartCity} → ${bookingData.EndCity}`,
+        busNumber: bookingData.BusNumber,
+        departure: bookingData.DepartureTime,
+        arrival: bookingData.ArrivalTime,
+        date: bookingData.TravelDate
+      }
+    };
+    sessionStorage.setItem('currentBooking', JSON.stringify(sessionBookingData));
+
+    // Redirect to payment.html
+    window.location.href = 'payment.html';
+
+  } catch (error) {
+    showNotification('Booking initiation failed: ' + error.message, 'error');
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.classList.remove('loading');
+    }
   }
 }
 

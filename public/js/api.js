@@ -88,6 +88,20 @@ class APIClient {
     });
   }
 
+  static async initiateBooking(bookingData) {
+    return this.request('/booking/initiate', {
+      method: 'POST',
+      body: JSON.stringify(bookingData)
+    });
+  }
+
+  static async confirmPayment(paymentData) {
+    return this.request('/payment/confirm', {
+      method: 'POST',
+      body: JSON.stringify(paymentData)
+    });
+  }
+
   static async getReservations() {
     return this.request('/reservations');
   }

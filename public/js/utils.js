@@ -159,4 +159,13 @@ async function initializeRouteSearchForm() {
 }
 
 // Call this on page load
-document.addEventListener('DOMContentLoaded', updateAuthUI);
+document.addEventListener('DOMContentLoaded', () => {
+  updateAuthUI();
+  const pendingToast = localStorage.getItem('pendingToast');
+  if (pendingToast) {
+    setTimeout(() => {
+      showNotification(pendingToast, 'error');
+    }, 100);
+    localStorage.removeItem('pendingToast');
+  }
+});
