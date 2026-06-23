@@ -79,6 +79,17 @@ function changePaymentMethod() {
   const selectedMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
   const panels = document.querySelectorAll('.payment-panel');
 
+  // Highlight selected tab
+  const labels = document.querySelectorAll('.payment-method');
+  labels.forEach(label => {
+    const radio = label.querySelector('input');
+    if (radio && radio.checked) {
+      label.classList.add('active-tab');
+    } else {
+      label.classList.remove('active-tab');
+    }
+  });
+
   panels.forEach(panel => {
     if (panel.getAttribute('data-payment-panel') === selectedMethod) {
       panel.classList.remove('is-hidden');

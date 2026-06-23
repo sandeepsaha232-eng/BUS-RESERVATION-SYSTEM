@@ -48,7 +48,42 @@ router.post('/confirm', authMiddleware, [
         ['confirmed', booking_id]
       );
 
+      // Fetch booking details for sending confirmation email
+      const [details] = await connection.query(`
+        SELECT 
+          r.ReservationID, r.SeatNumber, r.PassengerName, r.PassengerEmail, r.PassengerPhone, r.TotalFare,
+          b.BusNumber, rt.StartCity, rt.EndCity,
+          s.DepartureTime, s.ArrivalTime
+        FROM Reservations r
+        JOIN Schedules s ON r.ScheduleID = s.ScheduleID
+        JOIN Buses b ON s.BusID = b.BusID
+        JOIN Routes rt ON s.RouteID = rt.RouteID
+        WHERE r.ReservationID = ?
+      `, [booking_id]);
+
       await connection.commit();
+
+      if (details.length > 0) {
+        const { sendBookingConfirmationEmail } = require('../utils/emailService');
+        const ticketInfo = {
+          reservationId: details[0].ReservationID,
+          passengerName: details[0].PassengerName,
+          passengerEmail: details[0].PassengerEmail,
+          seatNumber: details[0].SeatNumber,
+          totalFare: details[0].TotalFare,
+          startCity: details[0].StartCity,
+          endCity: details[0].EndCity,
+          departureTime: details[0].DepartureTime,
+          arrivalTime: details[0].ArrivalTime,
+          busNumber: details[0].BusNumber
+        };
+        
+        // Send email in background
+        sendBookingConfirmationEmail(ticketInfo).catch(err => {
+          console.error("Async email send failed:", err);
+        });
+      }
+
       res.json({ message: 'Payment confirmed successfully', booking_id });
 
     } catch (error) {
