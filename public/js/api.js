@@ -6,13 +6,15 @@ const LOCAL_API_PORT = window.location.port && !['3000', '5500', '8080'].include
   : '5800';
 
 const isLocalHost = LOCAL_HOSTS.includes(window.location.hostname) ||
+                    window.location.protocol === 'file:' ||
+                    window.location.hostname === '' ||
                     window.location.hostname.startsWith('192.168.') ||
                     window.location.hostname.startsWith('10.') ||
                     /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname) ||
                     window.location.hostname.endsWith('.local');
 
 const API_BASE_URL = isLocalHost
-  ? `${window.location.protocol}//${window.location.hostname}:${LOCAL_API_PORT}/api`
+  ? `${window.location.protocol === 'file:' ? 'http:' : window.location.protocol}//${window.location.hostname || 'localhost'}:${LOCAL_API_PORT}/api`
   : 'https://bus-reservation-system-production-0021.up.railway.app/api';
 
 class APIClient {
