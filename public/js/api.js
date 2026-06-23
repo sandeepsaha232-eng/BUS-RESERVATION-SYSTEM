@@ -13,9 +13,7 @@ const isLocalHost = LOCAL_HOSTS.includes(window.location.hostname) ||
                     /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname) ||
                     window.location.hostname.endsWith('.local');
 
-const API_BASE_URL = isLocalHost
-  ? `${window.location.protocol === 'file:' ? 'http:' : window.location.protocol}//${window.location.hostname || 'localhost'}:${LOCAL_API_PORT}/api`
-  : 'https://bus-reservation-system-production-0021.up.railway.app/api';
+const API_BASE_URL = 'http://localhost:5800/api';
 
 class APIClient {
   static async request(endpoint, options = {}) {
